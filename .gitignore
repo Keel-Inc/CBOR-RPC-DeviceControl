@@ -1,0 +1,28 @@
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+build/
+out/
+
+# Ninja
+build.ninja
+.ninja_log
+
+# Doxygen documentation
+docs/html/
+docs/latex/
+
+# Coverage reports
+*.coverage
+coverage/
+
+# VSCode
+Device/.vscode/
