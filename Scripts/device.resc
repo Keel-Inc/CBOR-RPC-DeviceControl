@@ -1,0 +1,5 @@
+# Include the built-in script
+i @scripts/single-node/stm32f746.resc
+
+# Start the simulation
+start
