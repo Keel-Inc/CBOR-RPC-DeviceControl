@@ -1,5 +1,8 @@
-# Include the built-in script
+# Set the binary
+$bin = @Device/build/RelWithDebInfo/Device.elf
+
+# Include the built-in stm32f746 script
 i @scripts/single-node/stm32f746.resc
 
 # Start the simulation
-start
+start 
