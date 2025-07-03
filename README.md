@@ -1,17 +1,34 @@
 # CBOR-RPC for Device Control
 
-## Build
+## Build and Setup
 
+Check out the repository
 ```powershell
-# Check out repository
 git clone https://github.com/Keel-Inc/CBOR-RPC-DeviceControl.git
 cd CBOR-RPC-DeviceControl
+```
 
+Build the Device application
+```
 # Build the Device application
 cd .\Device
 cmake --preset RelWithDebInfo
-cmake --build build/RelWithDebInfo
 cd ..
+cmake --build Device\build\RelWithDebInfo
+```
+
+Setup the Host application
+```powershell
+# Create a new virtual environment:
+uv venv && .venv\Scripts\activate.ps1
+
+# Install dependencies (including test):
+uv pip install -e 'Host\.[test]'
+```
+
+Run the tests:
+```powershell
+python -m pytest
 ```
 
 ## Generate an Image
