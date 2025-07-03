@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
+#include <stdio.h>
+#include "comm.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -148,6 +150,11 @@ int main(void)
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_DISP_GPIO_Port, LCD_DISP_Pin, GPIO_PIN_SET);
 
+  printf("Bootup complete\r\n");
+  
+  // Initialize communication
+  CommInit();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -157,6 +164,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // Process any received messages on USART6 (interrupt mode)
+    USART6_Process_Message();
   }
   /* USER CODE END 3 */
 }

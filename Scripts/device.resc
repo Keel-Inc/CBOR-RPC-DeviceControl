@@ -4,5 +4,9 @@ $bin = @Device/build/RelWithDebInfo/Device.elf
 # Include the built-in stm32f746 script
 i @scripts/single-node/stm32f746.resc
 
+# Configure USART6 to be accessible via TCP on port 3456
+emulation CreateServerSocketTerminal 3456 "usart6-terminal" false
+connector Connect usart6 usart6-terminal
+
 # Start the simulation
 start 
