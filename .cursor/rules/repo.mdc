@@ -1,0 +1,6 @@
+---
+description: 
+globs: **/*
+alwaysApply: false
+---
+This is a monorepo with two projects. `Device` is C Firmware for an STM32F746G Discovery board. `Host` is a Python click app. Neither subprojects need a README.md file because the repository has a single READE.md in the root directory.
