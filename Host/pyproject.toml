@@ -22,3 +22,31 @@ Run-Host = "cbor_host.cli:cli"
 
 [project.optional-dependencies]
 test = ["pytest"]
+dev = ["ruff"]
+
+# Ruff configuration
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.format]
+# Use Black-compatible formatting
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+# Enable essential rule sets
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+# Sort imports
+known-first-party = [""]

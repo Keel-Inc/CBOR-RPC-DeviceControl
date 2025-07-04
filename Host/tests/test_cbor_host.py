@@ -1,5 +1,5 @@
-import pytest
 from click.testing import CliRunner
+
 from cbor_host.cli import cli
 
 

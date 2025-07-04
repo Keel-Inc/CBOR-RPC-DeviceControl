@@ -1,0 +1,11 @@
+---
+globs: **/*.py
+alwaysApply: false
+---
+
+After making changes, run the linter then run tests:
+```
+.venv\Scripts\activate.ps1
+ruff check --fix . && ruff format .
+pytest .
+```
