@@ -4,7 +4,7 @@
 
 Check out the repository
 ```powershell
-git clone https://github.com/Keel-Inc/CBOR-RPC-DeviceControl.git
+git clone --recurse-submodules https://github.com/Keel-Inc/CBOR-RPC-DeviceControl.git
 cd CBOR-RPC-DeviceControl
 ```
 

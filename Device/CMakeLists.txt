@@ -40,6 +40,49 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+# Create a custom TinyCBOR library with only core functionality
+add_library(tinycbor STATIC
+    tinycbor/src/cborencoder.c
+    tinycbor/src/cborencoder_close_container_checked.c
+    tinycbor/src/cborparser.c
+    tinycbor/src/cborerrorstrings.c
+)
+
+# Configure the minimal TinyCBOR library
+target_include_directories(tinycbor
+    PUBLIC tinycbor/src
+    PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/tinycbor_config
+)
+
+# Set TinyCBOR compile options for embedded use
+target_compile_definitions(tinycbor PUBLIC
+    CBOR_NO_FLOATING_POINT
+    CBOR_STATIC_DEFINE
+    WITHOUT_OPEN_MEMSTREAM
+)
+
+target_compile_options(tinycbor PRIVATE
+    -ffreestanding
+    -std=c99
+)
+
+# Create the necessary TinyCBOR configuration headers
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tinycbor_config)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tinycbor_config/tinycbor-version.h
+    "#ifndef TINYCBOR_VERSION_H\n"
+    "#define TINYCBOR_VERSION_H\n"
+    "#define TINYCBOR_VERSION_MAJOR 0\n"
+    "#define TINYCBOR_VERSION_MINOR 7\n"
+    "#define TINYCBOR_VERSION_PATCH 0\n"
+    "#endif\n"
+)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tinycbor_config/tinycbor-export.h
+    "#ifndef TINYCBOR_EXPORT_H\n"
+    "#define TINYCBOR_EXPORT_H\n"
+    "#define CBOR_API\n"
+    "#endif\n"
+)
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
@@ -47,13 +90,12 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user sources here
     Core/Src/comm.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
+
 )
 
 # Add project symbols (macros)
@@ -64,6 +106,5 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-
-    # Add user defined libraries
+    tinycbor
 )
