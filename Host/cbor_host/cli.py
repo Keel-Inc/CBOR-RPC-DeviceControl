@@ -1,6 +1,8 @@
 import click
 import serial
 import time
+import cbor2
+import struct
 
 
 @click.command()
@@ -27,23 +29,37 @@ def cli(message: str, host: str, port: int, timeout: float):
         ser.reset_input_buffer()
         ser.reset_output_buffer()
         
-        # Send the message using ASCII encoding (add newline for easier parsing on device side)
-        message_bytes = (message + '\n').encode('ascii')
-        ser.write(message_bytes)
+        # Encode the message as CBOR
+        cbor_data = cbor2.dumps(message)
+        
+        # Send length prefix (4 bytes, big-endian) followed by CBOR data
+        length_prefix = struct.pack('>I', len(cbor_data))
+        ser.write(length_prefix + cbor_data)
         
         # Wait a bit for the device to process and respond
         time.sleep(0.2)
         
-        # Read the echo response with better error handling
+        # Read the CBOR response with proper framing
         try:
-            response_bytes = ser.read_until(b'\n')
-            # Try ASCII decoding first, fall back to latin-1 for any bytes
-            try:
-                response = response_bytes.decode('ascii').strip()
-            except UnicodeDecodeError:
-                # If ASCII fails, use latin-1 which can decode any byte sequence
-                response = response_bytes.decode('latin-1').strip()
-                click.echo(f"Warning: Received non-ASCII data: {response_bytes.hex()}")
+            # Read 4-byte length prefix
+            length_bytes = ser.read(4)
+            if len(length_bytes) != 4:
+                raise Exception(f"Expected 4 bytes for length, got {len(length_bytes)}")
+            
+            # Unpack length (big-endian unsigned int)
+            response_length = struct.unpack('>I', length_bytes)[0]
+            
+            if response_length > 1024:  # Sanity check
+                raise Exception(f"Response length too large: {response_length}")
+            
+            # Read the CBOR data
+            response_bytes = ser.read(response_length)
+            if len(response_bytes) != response_length:
+                raise Exception(f"Expected {response_length} bytes, got {len(response_bytes)}")
+            
+            # Decode CBOR to get the original message
+            response = cbor2.loads(response_bytes)
+            
         except Exception as e:
             click.echo(f"Error reading response: {e}")
             response = ""
