@@ -20,8 +20,38 @@ def test_cli_help():
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
     assert "CBOR Host - Communication tools for Device LCD display" in result.output
+    assert "clear" in result.output
+    assert "display" in result.output
     assert "test" in result.output
     assert "make-header" in result.output
+
+
+def test_clear_subcommand_help():
+    """Test that clear subcommand help displays correctly"""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["clear", "--help"])
+    assert result.exit_code == 0
+    assert "Clear the LCD display" in result.output
+    assert "--host" in result.output
+    assert "--port" in result.output
+
+
+def test_display_subcommand_help():
+    """Test that display subcommand help displays correctly"""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["display", "--help"])
+    assert result.exit_code == 0
+    assert "Display an image on the LCD screen" in result.output
+    assert "IMAGE_PATH" in result.output
+    assert "optional" in result.output
+
+
+def test_display_with_nonexistent_image():
+    """Test that display subcommand fails with nonexistent image"""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["display", "nonexistent.jpg"])
+    assert result.exit_code != 0
+    assert "does not exist" in result.output
 
 
 def test_test_subcommand_help():

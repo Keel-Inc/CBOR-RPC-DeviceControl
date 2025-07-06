@@ -1,5 +1,6 @@
 import struct
 from pathlib import Path
+from typing import Optional
 
 import cbor2
 import click
@@ -154,6 +155,77 @@ def test(message: str, host: str, port: int):
             click.echo("✓ RPC communication working correctly!")
     else:
         click.echo("✗ RPC communication failed")
+
+
+@cli.command()
+@click.option("--host", default="localhost", help="Renode host address")
+@click.option("--port", default=3456, help="Renode USART6 TCP port")
+def clear(host: str, port: int):
+    """Clear the LCD display"""
+    click.echo("CBOR Host - Clearing LCD display")
+
+    rpc_message = {"method": "clear_display", "params": {}}
+
+    click.echo(f"Connecting to {host}:{port}")
+    response = send_rpc_message(rpc_message, host, port)
+
+    if response and response.get("status") == "success":
+        click.echo("✓ LCD display cleared successfully!")
+    else:
+        click.echo("✗ Failed to clear LCD display")
+
+
+@cli.command()
+@click.argument("image_path", type=click.Path(exists=True, path_type=Path), required=False)
+@click.option("--host", default="localhost", help="Renode host address")
+@click.option("--port", default=3456, help="Renode USART6 TCP port")
+def display(image_path: Optional[Path], host: str, port: int):
+    """Display an image on the LCD screen
+
+    IMAGE_PATH: Path to the image file to send to the device (optional)
+
+    If IMAGE_PATH is omitted, the default image will be displayed.
+    """
+    click.echo(f"Connecting to {host}:{port}")
+
+    if image_path is None:
+        # Display default image
+        click.echo("CBOR Host - Displaying default image")
+        rpc_message = {"method": "display_default", "params": {}}
+        response = send_rpc_message(rpc_message, host, port)
+
+        if response and response.get("status") == "success":
+            click.echo("✓ Default image displayed successfully!")
+        else:
+            click.echo("✗ Failed to display default image")
+    else:
+        # Display custom image
+        click.echo(f"CBOR Host - Processing image: {image_path}")
+
+        # Process image
+        try:
+            # Resize image to 480x272
+            resized_image = resize_image(image_path, 480, 272)
+            click.echo("✓ Image processed (cropped and scaled to 480x272)")
+
+            # Convert to RGB565
+            rgb565_data = convert_to_rgb565(resized_image)
+            click.echo(f"✓ Image converted to RGB565 ({len(rgb565_data)} bytes)")
+
+        except Exception as e:
+            click.echo(f"Error processing image: {e}", err=True)
+            return
+
+        # Create CBOR-RPC message with image data
+        rpc_message = {"method": "display_image", "params": {"image_data": rgb565_data}}
+
+        click.echo("Connected to device. Sending image data...")
+        response = send_rpc_message(rpc_message, host, port)
+
+        if response and response.get("status") == "success":
+            click.echo("✓ Image sent successfully!")
+        else:
+            click.echo("✗ Failed to send image")
 
 
 @cli.command()

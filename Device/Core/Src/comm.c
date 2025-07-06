@@ -1,5 +1,6 @@
 #include "comm.h"
 #include "cbor.h"
+#include "image.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -261,6 +262,33 @@ static CborError handle_test_method(CborValue *map_value)
     return CborErrorUnknownType;
 }
 
+static CborError handle_clear_display_method(CborValue *map_value)
+{
+    printf("USART6 DEBUG: Handling clear_display method\r\n");
+
+    // Clear the image buffer and update display
+    clear_image_buffer();
+    update_display();
+
+    // Send success response
+    send_cbor_response("success", "Display cleared successfully");
+
+    return CborNoError;
+}
+
+static CborError handle_display_default_method(CborValue *map_value)
+{
+    printf("USART6 DEBUG: Handling display_default method\r\n");
+
+    // Display the default image
+    display_default_image();
+
+    // Send success response
+    send_cbor_response("success", "Default image displayed successfully");
+
+    return CborNoError;
+}
+
 static CborError process_cbor_rpc_message(const uint8_t *cbor_data, size_t data_length)
 {
     printf("USART6 DEBUG: Starting CBOR RPC message processing, length: %zu\r\n", data_length);
@@ -380,7 +408,13 @@ static CborError process_cbor_rpc_message(const uint8_t *cbor_data, size_t data_
     }
 
     // Route to appropriate method handler
-    if (strcmp(method_name, "test") == 0) {
+    if (strcmp(method_name, "clear_display") == 0) {
+        return handle_clear_display_method(&map_value);
+    }
+    else if (strcmp(method_name, "display_default") == 0) {
+        return handle_display_default_method(&map_value);
+    }
+    else if (strcmp(method_name, "test") == 0) {
         return handle_test_method(&map_value);
     }
     else {

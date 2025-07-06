@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // Image display constants
 #define IMAGE_WIDTH 480
@@ -16,10 +16,16 @@ extern "C" {
 
 // Function declarations
 void display_init(void);
-void display_default_image(const uint16_t *default_image_data);
+void display_image(const uint16_t *image_data, size_t data_size);
+void display_default_image();
+
+// New API functions
+uint8_t *get_image_buffer(void);
+void clear_image_buffer(void);
+void update_display(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __IMAGE_H__ 
+#endif // __IMAGE_H__

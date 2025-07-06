@@ -61,9 +61,7 @@ UART_HandleTypeDef huart6;
 SDRAM_HandleTypeDef hsdram1;
 
 /* USER CODE BEGIN PV */
-const uint16_t default_image_data[] = {
-    #include "default_image_rgb565.h"
-};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -135,7 +133,7 @@ int main(void)
   display_init();
   
   // Display default image
-  display_default_image(default_image_data);
+  display_default_image();
 
   printf("Bootup complete\r\n");
   
