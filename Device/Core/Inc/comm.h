@@ -9,8 +9,11 @@ extern "C" {
 
 // Constants -----------------------------------------------------------------------------------------------------------
 
+#define CBOR_BUFFER_SIZE 256
+
 #define USART1_RX_BUFFER_SIZE 256
 #define USART1_TX_BUFFER_SIZE 256
+
 #define USART6_RX_BUFFER_SIZE 256
 #define USART6_TX_BUFFER_SIZE 256
 
