@@ -1,23 +1,68 @@
 import struct
-import time
+from pathlib import Path
 
 import cbor2
 import click
 import serial
+from PIL import Image
 
 
-@click.command()
-@click.argument("message", required=True)
-@click.option("--host", default="localhost", help="Renode host address")
-@click.option("--port", default=3456, help="Renode USART6 TCP port")
-@click.option("--timeout", default=5.0, help="Communication timeout in seconds")
-@click.version_option()
-def cli(message: str, host: str, port: int, timeout: float):
-    """CBOR Host - Send message to Device via USART6
+def resize_image(image_path: Path, target_width: int = 480, target_height: int = 272) -> Image.Image:
+    """Resize image to target dimensions using ffmpeg-style crop and scale logic."""
+    with Image.open(image_path) as img:
+        # Convert to RGB if not already
+        if img.mode != "RGB":
+            img = img.convert("RGB")
 
-    MESSAGE: The message to send to the device
-    """
-    click.echo(f"CBOR Host - Connecting to {host}:{port}")
+        # Get original dimensions
+        iw, ih = img.size
+
+        # Apply the ffmpeg crop logic: crop='min(iw,ih*480/272)':'min(ih,iw*272/480)'
+        target_aspect = target_width / target_height  # 480/272 = ~1.765
+
+        # Calculate crop dimensions
+        crop_width = min(iw, ih * target_aspect)
+        crop_height = min(ih, iw / target_aspect)
+
+        # Calculate crop box (center crop)
+        left = (iw - crop_width) / 2
+        top = (ih - crop_height) / 2
+        right = left + crop_width
+        bottom = top + crop_height
+
+        # Crop the image
+        cropped = img.crop((left, top, right, bottom))
+
+        # Scale to target dimensions
+        scaled = cropped.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+        return scaled
+
+
+def convert_to_rgb565(image: Image.Image) -> bytes:
+    """Convert PIL Image to RGB565 format."""
+    # Get pixel data
+    pixels = image.load()
+    width, height = image.size
+
+    # Convert to RGB565
+    rgb565_data = []
+    for y in range(height):
+        for x in range(width):
+            r, g, b = pixels[x, y]
+
+            # Convert 8-bit RGB to 5-6-5 format
+            r5 = (r >> 3) & 0x1F
+            g6 = (g >> 2) & 0x3F
+            b5 = (b >> 3) & 0x1F
+
+            # Pack into 16-bit value (big-endian)
+            rgb565 = (r5 << 11) | (g6 << 5) | b5
+            rgb565_data.append(rgb565)
+
+    # Convert to bytes (little-endian for STM32)
+    return b"".join(struct.pack("<H", pixel) for pixel in rgb565_data)
+
 
 def send_rpc_message(rpc_message: dict, host: str, port: int) -> dict:
     """Send an RPC message to the device and return the response."""
@@ -109,3 +154,37 @@ def test(message: str, host: str, port: int):
             click.echo("✓ RPC communication working correctly!")
     else:
         click.echo("✗ RPC communication failed")
+
+
+@cli.command()
+@click.option("-i", "--input", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("-o", "--output", type=click.Path(), required=True, help="Output C header file")
+@click.option("--columns", default=14, help="Number of values per line")
+def make_header(input: Path, output: Path, columns: int):
+    """Convert PNG image to C header file with RGB565 data."""
+    # Resize and crop image to 480x272 using the shared logic
+    processed_image = resize_image(input, 480, 272)
+
+    # Convert to RGB565
+    rgb565_data = convert_to_rgb565(processed_image)
+
+    # Convert RGB565 bytes to 16-bit values
+    values = [struct.unpack("<H", rgb565_data[i : i + 2])[0] for i in range(0, len(rgb565_data), 2)]
+
+    with open(output, "w") as f:
+        # Write header
+        f.write("// Generated automatically - do not edit\n")
+
+        # Generate values suitable for a C array
+        for i, val in enumerate(values):
+            f.write(f"0x{val:04X}")
+            if (i + 1) % columns == 0:
+                f.write(",\n")
+            else:
+                f.write(", ")
+
+        # Ensure we end with a newline if the last line wasn't complete
+        if len(values) % columns != 0:
+            f.write("\n")
+
+    click.echo(f"Generated {output} with {len(values)} uint16_t values (480x272 RGB565)")
