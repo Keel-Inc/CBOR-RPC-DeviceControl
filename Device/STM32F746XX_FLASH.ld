@@ -61,8 +61,9 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 320K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 1024K
+RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 336K   /* 320K SRAM1 + 16K SRAM2 */
+SDRAM (xrw)    : ORIGIN = 0xC0000000, LENGTH = 8192K  /* 8MB SDRAM */
+FLASH (rx)     : ORIGIN = 0x8000000, LENGTH = 1024K
 }
 
 /* Define output sections */
@@ -192,7 +193,16 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
-
+  /* SDRAM section for large buffers */
+  .sdram (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _ssdram = .;       /* create a global symbol at sdram start */
+    *(.sdram)          /* .sdram sections */
+    *(.sdram*)         /* .sdram* sections */
+    . = ALIGN(4);
+    _esdram = .;       /* define a global symbol at sdram end */
+  } >SDRAM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

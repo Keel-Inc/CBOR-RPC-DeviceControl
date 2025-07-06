@@ -28,10 +28,11 @@
 
 // Private variables ---------------------------------------------------------------------------------------------------
 
-static uint8_t cbor_buffer[CBOR_BUFFER_SIZE];
-static uint8_t usart6_rx_buffer[USART6_RX_BUFFER_SIZE];
-static volatile uint16_t usart6_rx_head = 0;
-static volatile uint16_t usart6_rx_tail = 0;
+// Place large buffers in SDRAM
+static uint8_t cbor_buffer[CBOR_BUFFER_SIZE] __attribute__((section(".sdram")));
+static uint8_t usart6_rx_buffer[USART6_RX_BUFFER_SIZE] __attribute__((section(".sdram")));
+static volatile uint32_t usart6_rx_head = 0;
+static volatile uint32_t usart6_rx_tail = 0;
 
 // External variables --------------------------------------------------------------------------------------------------
 
@@ -129,6 +130,102 @@ static void send_test_response(const char *status, const char *message, const ch
     HAL_UART_Transmit(&huart6, response_buffer, encoded_size, HAL_MAX_DELAY);
 
     printf("USART6 DEBUG: Test response sent successfully\r\n");
+}
+
+static CborError process_display_params(CborValue *params_map)
+{
+    CborError err;
+    bool found_image_data = false;
+
+    printf("USART6 DEBUG: Starting parameter processing\r\n");
+
+    while (!cbor_value_at_end(params_map)) {
+        if (!cbor_value_is_text_string(params_map)) {
+            printf("USART6 DEBUG: Skipping non-text key\r\n");
+            SKIP_KEY_VALUE_PAIR(params_map);
+        }
+
+        char param_name[32];
+        size_t param_length = sizeof(param_name);
+        err = cbor_value_copy_text_string(params_map, param_name, &param_length, NULL);
+        if (err != CborNoError) {
+            printf("USART6 DEBUG: Error reading parameter name: %d\r\n", err);
+            return err;
+        }
+
+        printf("USART6 DEBUG: Found parameter: %s\r\n", param_name);
+
+        if (strcmp(param_name, "image_data") == 0) {
+            printf("USART6 DEBUG: Processing image_data parameter\r\n");
+            // Move to image data value
+            err = cbor_value_advance(params_map);
+            if (err != CborNoError) {
+                printf("USART6 DEBUG: Error advancing to image data value: %d\r\n", err);
+                return err;
+            }
+
+            // Process image data
+            if (!cbor_value_is_byte_string(params_map)) {
+                printf("USART6 DEBUG: Image data is not a byte string\r\n");
+                send_cbor_response("error", "Image data must be byte string");
+                return CborErrorIllegalType;
+            }
+
+            size_t image_data_length;
+            err = cbor_value_get_string_length(params_map, &image_data_length);
+            if (err != CborNoError) {
+                printf("USART6 DEBUG: Error getting image data length: %d\r\n", err);
+                send_cbor_response("error", "Invalid image data format");
+                return err;
+            }
+
+            printf("USART6 DEBUG: Image data length: %lu bytes\r\n", (unsigned long) image_data_length);
+
+            if (image_data_length > IMAGE_DATA_SIZE) {
+                printf("USART6 DEBUG: Image data too large: %zu > %d\r\n", image_data_length, IMAGE_DATA_SIZE);
+                send_cbor_response("error", "Image data too large");
+                return CborErrorDataTooLarge;
+            }
+
+            // Copy image data directly to framebuffer
+            uint8_t *image_buffer = get_image_buffer();
+            err = cbor_value_copy_byte_string(params_map, image_buffer, &image_data_length, NULL);
+            if (err != CborNoError) {
+                printf("USART6 DEBUG: Error copying image data: %d\r\n", err);
+                send_cbor_response("error", "Failed to read image data");
+                return err;
+            }
+
+            printf("USART6 DEBUG: Image data copied successfully, updating display\r\n");
+            update_display();
+            found_image_data = true;
+
+            // Continue parsing to look for additional parameters
+            err = cbor_value_advance(params_map);
+            if (err != CborNoError) {
+                printf("USART6 DEBUG: Error advancing after image data: %d\r\n", err);
+                return err;
+            }
+        }
+        else {
+            printf("USART6 DEBUG: Skipping unknown parameter: %s\r\n", param_name);
+            SKIP_KEY_VALUE_PAIR(params_map);
+        }
+    }
+
+    printf("USART6 DEBUG: Parameter processing complete - image_data: %s\r\n", found_image_data ? "YES" : "NO");
+
+    // Send appropriate response based on what we found
+    if (found_image_data) {
+        send_cbor_response("success", "Image displayed successfully");
+    }
+    else {
+        printf("USART6 DEBUG: No valid parameters found\r\n");
+        send_cbor_response("error", "No valid parameters found (expected image_data)");
+        return CborErrorUnknownType;
+    }
+
+    return CborNoError;
 }
 
 static CborError handle_test_method(CborValue *map_value)
@@ -289,6 +386,68 @@ static CborError handle_display_default_method(CborValue *map_value)
     return CborNoError;
 }
 
+static CborError handle_display_image_method(CborValue *map_value)
+{
+    CborError err;
+
+    printf("USART6 DEBUG: Handling display_image method\r\n");
+
+    while (!cbor_value_at_end(map_value)) {
+        if (!cbor_value_is_text_string(map_value)) {
+            printf("USART6 DEBUG: Skipping non-text key in method handler\r\n");
+            SKIP_KEY_VALUE_PAIR(map_value);
+        }
+
+        char key_name[32];
+        size_t key_length = sizeof(key_name);
+        err = cbor_value_copy_text_string(map_value, key_name, &key_length, NULL);
+        if (err != CborNoError) {
+            printf("USART6 DEBUG: Error reading method handler key: %d\r\n", err);
+            return err;
+        }
+
+        printf("USART6 DEBUG: Found method handler key: %s\r\n", key_name);
+
+        if (strcmp(key_name, "params") == 0) {
+            printf("USART6 DEBUG: Found params field\r\n");
+            // Move to params value
+            err = cbor_value_advance(map_value);
+            if (err != CborNoError) {
+                printf("USART6 DEBUG: Error advancing to params value: %d\r\n", err);
+                return err;
+            }
+
+            // Enter params map
+            if (!cbor_value_is_map(map_value)) {
+                printf("USART6 DEBUG: Params is not a map\r\n");
+                send_cbor_response("error", "Params must be a map");
+                return CborErrorIllegalType;
+            }
+
+            printf("USART6 DEBUG: Params is a map - good\r\n");
+
+            CborValue params_map;
+            err = cbor_value_enter_container(map_value, &params_map);
+            if (err != CborNoError) {
+                printf("USART6 DEBUG: Error entering params container: %d\r\n", err);
+                send_cbor_response("error", "Failed to parse params");
+                return err;
+            }
+
+            printf("USART6 DEBUG: Entered params container, calling process_display_params\r\n");
+            return process_display_params(&params_map);
+        }
+        else {
+            printf("USART6 DEBUG: Skipping unknown method handler key: %s\r\n", key_name);
+            SKIP_KEY_VALUE_PAIR(map_value);
+        }
+    }
+
+    printf("USART6 DEBUG: Params not found in method call\r\n");
+    send_cbor_response("error", "Params not found in method call");
+    return CborErrorUnknownType;
+}
+
 static CborError process_cbor_rpc_message(const uint8_t *cbor_data, size_t data_length)
 {
     printf("USART6 DEBUG: Starting CBOR RPC message processing, length: %zu\r\n", data_length);
@@ -408,7 +567,10 @@ static CborError process_cbor_rpc_message(const uint8_t *cbor_data, size_t data_
     }
 
     // Route to appropriate method handler
-    if (strcmp(method_name, "clear_display") == 0) {
+    if (strcmp(method_name, "display_image") == 0) {
+        return handle_display_image_method(&map_value);
+    }
+    else if (strcmp(method_name, "clear_display") == 0) {
         return handle_clear_display_method(&map_value);
     }
     else if (strcmp(method_name, "display_default") == 0) {
@@ -439,9 +601,9 @@ void USART6_Start_Receive_IT(void)
     HAL_UART_Receive_IT(&huart6, &usart6_rx_buffer[usart6_rx_head], 1);
 }
 
-uint16_t USART6_Available(void)
+uint32_t USART6_Available(void)
 {
-    return (uint16_t) (USART6_RX_BUFFER_SIZE + usart6_rx_head - usart6_rx_tail) % USART6_RX_BUFFER_SIZE;
+    return (USART6_RX_BUFFER_SIZE + usart6_rx_head - usart6_rx_tail) % USART6_RX_BUFFER_SIZE;
 }
 
 uint8_t USART6_Read_Byte(void)
@@ -467,8 +629,6 @@ void USART6_Process_Message(void)
     static uint8_t state = 0; // 0 = reading length, 1 = reading data
 
     while (USART6_Available() > 0) {
-        printf("USART6 DEBUG: Starting message processing, %u bytes available, state=%u\r\n", USART6_Available(),
-               state);
         uint8_t received_byte = USART6_Read_Byte();
 
         if (state != 0) {
