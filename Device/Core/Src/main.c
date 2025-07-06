@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "comm.h"
+#include "image.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -130,25 +131,11 @@ int main(void)
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 
-    // Display image on LCD
-    const uint32_t IMAGE_WIDTH = 480;
-    const uint32_t IMAGE_HEIGHT = 272;
-    const uint32_t FRAMEBUFFER_ADDR = 0xC0000000;
-    
-    // Get pointer to framebuffer
-    uint16_t* framebuffer = (uint16_t*)FRAMEBUFFER_ADDR;
-    
-    // Copy the image data to framebuffer (480x272 pixels)
-    const uint32_t total_pixels = IMAGE_WIDTH * IMAGE_HEIGHT;
-    const uint32_t total_bytes = total_pixels * sizeof(uint16_t);
-    memcpy(framebuffer, default_image_data, total_bytes);
-    
-    // Enable LTDC display
-    HAL_LTDC_SetAddress(&hltdc, FRAMEBUFFER_ADDR, 0);
-    
-    // Ensure LCD backlight is on (already set in GPIO init)
-    HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(LCD_DISP_GPIO_Port, LCD_DISP_Pin, GPIO_PIN_SET);
+  // Initialize display system
+  display_init();
+  
+  // Display default image
+  display_default_image(default_image_data);
 
   printf("Bootup complete\r\n");
   
