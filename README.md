@@ -1,5 +1,7 @@
 # CBOR-RPC for Device Control
 
+[![CI](https://github.com/Keel-Inc/CBOR-RPC-DeviceControl/actions/workflows/ci.yml/badge.svg)](https://github.com/Keel-Inc/CBOR-RPC-DeviceControl/actions/workflows/ci.yml)
+
 ## Overview
 
 This repository demonstrates remote procedure call protocols for embedded devices using CBOR (Concise Binary Object Representation). A Python host application controls an STM32F746 Discovery board running bare-metal firmware, sending commands and images over UART to display on the device's LCD screen.
